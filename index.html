@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brick Breaker Game</title>
+    <title>Space Hell: Hard Mode</title>
     <style>
         body {
-            background-color: #111;
-            color: white;
-            font-family: Arial, sans-serif;
+            background-color: #05050a;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -17,55 +17,66 @@
             margin: 0;
             overflow: hidden;
         }
-        h1 {
-            margin: 5px;
-            font-size: 2rem;
-        }
-        #score-board {
+        #hud {
+            width: 500px;
+            display: flex;
+            justify-content: space-between;
             font-size: 1.2rem;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
+            font-weight: bold;
+            letter-spacing: 1px;
         }
         canvas {
-            background: #222;
-            border: 3px solid #0095DD;
-            box-shadow: 0 0 20px rgba(0, 149, 221, 0.3);
+            background: #000;
+            border: 3px solid #ff0055;
+            box-shadow: 0 0 30px rgba(255, 0, 85, 0.4);
         }
-        #ui-screen {
+        #menu-overlay {
             display: none;
             position: absolute;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: rgba(0, 0, 0, 0.85);
-            width: 480px;
-            height: 320px;
-            border: 3px solid #0095DD;
+            background: rgba(5, 5, 10, 0.9);
+            width: 500px;
+            height: 500px;
+            border: 3px solid #ff0055;
+            box-sizing: border-box;
+        }
+        h2 {
+            font-size: 2.5rem;
+            margin: 0 0 10px 0;
+            text-shadow: 0 0 10px #ff0055;
         }
         button {
-            background: #0095DD;
+            background: #ff0055;
             color: white;
             border: none;
-            padding: 10px 20px;
-            font-size: 1rem;
+            padding: 12px 28px;
+            font-size: 1.1rem;
+            font-family: inherit;
+            font-weight: bold;
             cursor: pointer;
-            border-radius: 4px;
-            margin-top: 15px;
+            box-shadow: 0 0 10px rgba(255, 0, 85, 0.5);
         }
         button:hover {
-            background: #0077b3;
+            background: #ff3377;
         }
     </style>
 </head>
 <body>
 
-    <h1>BRICK BREAKER</h1>
-    <div id="score-board">Score: <span id="score">0</span> | Lives: <span id="lives">3</span></div>
+    <div id="hud">
+        <div>SCORE: <span id="score">0</span></div>
+        <div style="color: #ff0055;">DIFFICULTY: BRUTAL</div>
+    </div>
 
     <div style="position: relative;">
-        <canvas id="gameCanvas" width="480" height="320"></canvas>
-        <div id="ui-screen">
-            <h2 id="ui-title">GAME OVER</h2>
-            <button onclick="resetGame()">Play Again</button>
+        <canvas id="gameCanvas" width="500" height="500"></canvas>
+        <div id="menu-overlay">
+            <h2 id="menu-title">GAME OVER</h2>
+            <p id="menu-desc">You lasted 0 seconds.</p>
+            <button onclick="startGame()">TRY AGAIN</button>
         </div>
     </div>
 
@@ -73,194 +84,167 @@
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
         const scoreDisplay = document.getElementById("score");
-        const livesDisplay = document.getElementById("lives");
-        const uiScreen = document.getElementById("ui-screen");
-        const uiTitle = document.getElementById("ui-title");
+        const menuOverlay = document.getElementById("menu-overlay");
+        const menuTitle = document.getElementById("menu-title");
+        const menuDesc = document.getElementById("menu-desc");
 
-        // Ball attributes
-        let x = canvas.width / 2;
-        let y = canvas.height - 30;
-        let dx = 2;
-        let dy = -2;
-        const ballRadius = 8;
+        // Game state
+        let player, playerBullets, enemyBullets, enemies, keys;
+        let score, isPlaying, enemySpeedX, enemyDirection, lastTime, startTime;
 
-        // Paddle attributes
-        const paddleHeight = 10;
-        const paddleWidth = 75;
-        let paddleX = (canvas.width - paddleWidth) / 2;
-        let rightPressed = false;
-        let leftPressed = false;
+        // Configuration
+        const PLAYER_SPEED = 6;
+        const BULLET_SPEED = -8;
+        const ENEMY_BULLET_SPEED = 5;
+        const ENEMY_FIRE_CHANCE = 0.02; // Very high fire rate trigger
 
-        // Brick attributes
-        const brickRowCount = 3;
-        const brickColumnCount = 5;
-        const brickWidth = 75;
-        const brickHeight = 20;
-        const brickPadding = 10;
-        const brickOffsetTop = 30;
-        const brickOffsetLeft = 30;
+        function init() {
+            player = { x: canvas.width / 2 - 15, y: canvas.height - 40, w: 30, h: 20 };
+            playerBullets = [];
+            enemyBullets = [];
+            enemies = [];
+            keys = {};
+            score = 0;
+            enemySpeedX = 2.5; 
+            enemyDirection = 1;
+            scoreDisplay.textContent = score;
 
-        let bricks = [];
-        let score = 0;
-        let lives = 3;
-        let gameRunning = true;
-
-        function initBricks() {
-            bricks = [];
-            for (let c = 0; c < brickColumnCount; c++) {
-                bricks[c] = [];
-                for (let r = 0; r < brickRowCount; r++) {
-                    bricks[c][r] = { x: 0, y: 0, status: 1 };
+            // Spawn grid of brutal enemies
+            const rows = 4;
+            const cols = 7;
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    enemies.push({
+                        x: 40 + c * 60,
+                        y: 40 + r * 45,
+                        w: 35,
+                        h: 25,
+                        color: r % 2 === 0 ? "#ff0055" : "#ff5500"
+                    });
                 }
             }
         }
 
-        // Event listeners
-        document.addEventListener("keydown", keyDownHandler, false);
-        document.addEventListener("keyup", keyUpHandler, false);
-        document.addEventListener("mousemove", mouseMoveHandler, false);
+        window.addEventListener("keydown", e => keys[e.key] = true);
+        window.addEventListener("keyup", e => keys[e.key] = false);
 
-        function keyDownHandler(e) {
-            if (e.key === "Right" || e.key === "ArrowRight") rightPressed = true;
-            else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = true;
+        function startGame() {
+            menuOverlay.style.display = "none";
+            init();
+            isPlaying = true;
+            startTime = Date.now();
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
         }
 
-        function keyUpHandler(e) {
-            if (e.key === "Right" || e.key === "ArrowRight") rightPressed = false;
-            else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = false;
-        }
-
-        function mouseMoveHandler(e) {
-            const relativeX = e.clientX - canvas.getBoundingClientRect().left;
-            if (relativeX > 0 && relativeX < canvas.width) {
-                paddleX = relativeX - paddleWidth / 2;
-            }
-        }
-
-        function collisionDetection() {
-            for (let c = 0; c < brickColumnCount; c++) {
-                for (let r = 0; r < brickRowCount; r++) {
-                    const b = bricks[c][r];
-                    if (b.status === 1) {
-                        if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
-                            dy = -dy;
-                            b.status = 0;
-                            score++;
-                            scoreDisplay.textContent = score;
-                            if (score === brickRowCount * brickColumnCount) {
-                                endGame(true);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        function drawBall() {
-            ctx.beginPath();
-            ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
-            ctx.fillStyle = "#FF5722";
-            ctx.fill();
-            ctx.closePath();
-        }
-
-        function drawPaddle() {
-            ctx.beginPath();
-            ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
-            ctx.fillStyle = "#0095DD";
-            ctx.fill();
-            ctx.closePath();
-        }
-
-        function drawBricks() {
-            for (let c = 0; c < brickColumnCount; c++) {
-                for (let r = 0; r < brickRowCount; r++) {
-                    if (bricks[c][r].status === 1) {
-                        const brickX = c * (brickWidth + brickPadding) + brickOffsetLeft;
-                        const brickY = r * (brickHeight + brickPadding) + brickOffsetTop;
-                        bricks[c][r].x = brickX;
-                        bricks[c][r].y = brickY;
-                        ctx.beginPath();
-                        ctx.rect(brickX, brickY, brickWidth, brickHeight);
-                        ctx.fillStyle = "#4CAF50";
-                        ctx.fill();
-                        ctx.closePath();
-                    }
-                }
-            }
-        }
-
-        function draw() {
-            if (!gameRunning) return;
+        function gameLoop(timestamp) {
+            if (!isPlaying) return;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawBricks();
-            drawBall();
-            drawPaddle();
-            collisionDetection();
 
-            // Wall collisions (Left/Right)
-            if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
-                dx = -dx;
-            }
-            // Wall collision (Top)
-            if (y + dy < ballRadius) {
-                dy = -dy;
-            } 
-            // Bottom collision (Paddle or Ground)
-            else if (y + dy > canvas.height - ballRadius) {
-                if (x > paddleX && x < paddleX + paddleWidth) {
-                    dy = -dy;
-                } else {
-                    lives--;
-                    livesDisplay.textContent = lives;
-                    if (!lives) {
-                        endGame(false);
-                    } else {
-                        x = canvas.width / 2;
-                        y = canvas.height - 30;
-                        dx = 2;
-                        dy = -2;
-                        paddleX = (canvas.width - paddleWidth) / 2;
-                    }
+            // 1. Move Player
+            if ((keys["ArrowLeft"] || keys["a"]) && player.x > 0) player.x -= PLAYER_SPEED;
+            if ((keys["ArrowRight"] || keys["d"]) && player.x < canvas.width - player.w) player.x += PLAYER_SPEED;
+
+            // 2. Shoot (Spacebar or W / Up Arrow)
+            if (keys[" "] || keys["w"] || keys["ArrowUp"]) {
+                if (playerBullets.length === 0 || playerBullets[playerBullets.length - 1].y < player.y - 120) {
+                    playerBullets.push({ x: player.x + player.w / 2 - 2, y: player.y, w: 4, h: 12 });
                 }
             }
 
-            // Move paddle
-            if (rightPressed && paddleX < canvas.width - paddleWidth) paddleX += 5;
-            else if (leftPressed && paddleX > 0) paddleX -= 5;
+            // 3. Update & Draw Player Bullets
+            ctx.fillStyle = "#00ffff";
+            for (let i = playerBullets.length - 1; i >= 0; i--) {
+                let b = playerBullets[i];
+                b.y += BULLET_SPEED;
+                ctx.fillRect(b.x, b.y, b.w, b.h);
 
-            x += dx;
-            y += dy;
+                // Check hit on enemies
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    let e = enemies[j];
+                    if (b.x > e.x && b.x < e.x + e.w && b.y > e.y && b.y < e.y + e.h) {
+                        enemies.splice(j, 1);
+                        playerBullets.splice(i, 1);
+                        score += 150;
+                        scoreDisplay.textContent = score;
+                        enemySpeedX += 0.15; // Speed ramps up significantly as they die
+                        break;
+                    }
+                }
+                if (b && b.y < 0) playerBullets.splice(i, 1);
+            }
 
-            requestAnimationFrame(draw);
+            // 4. Update & Draw Enemies
+            let shiftDown = false;
+            enemies.forEach(e => {
+                e.x += enemySpeedX * enemyDirection;
+                if (e.x + e.w > canvas.width || e.x < 0) shiftDown = true;
+            });
+
+            if (shiftDown) {
+                enemyDirection *= -1;
+                enemies.forEach(e => {
+                    e.y += 25; // Massive downward jump
+                    if (e.y + e.h >= player.y) endGame(false); // Infiltration loss
+                });
+            }
+
+            enemies.forEach(e => {
+                ctx.fillStyle = e.color;
+                ctx.fillRect(e.x, e.y, e.w, e.h);
+                
+                // Aggressive firing AI
+                if (Math.random() < ENEMY_FIRE_CHANCE) {
+                    enemyBullets.push({ x: e.x + e.w / 2 - 2, y: e.y + e.h, w: 5, h: 10 });
+                }
+            });
+
+            // 5. Update & Draw Enemy Bullets (Bullet Hell Tracker)
+            ctx.fillStyle = "#ff0055";
+            for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                let eb = enemyBullets[i];
+                eb.y += ENEMY_BULLET_SPEED;
+                ctx.fillRect(eb.x, eb.y, eb.w, eb.h);
+
+                // Collision with player (Instadeath)
+                if (eb.x < player.x + player.w && eb.x + eb.w > player.x &&
+                    eb.y < player.y + player.h && eb.y + eb.h > player.y) {
+                    endGame(false);
+                    return;
+                }
+                if (eb.y > canvas.height) enemyBullets.splice(i, 1);
+            }
+
+            // 6. Draw Player
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(player.x, player.y, player.w, player.h);
+
+            // Win state check
+            if (enemies.length === 0) {
+                endGame(true);
+                return;
+            }
+
+            requestAnimationFrame(gameLoop);
         }
 
-        function endGame(win) {
-            gameRunning = false;
-            uiTitle.textContent = win ? "YOU WIN!" : "GAME OVER";
-            uiTitle.style.color = win ? "#4CAF50" : "#FF5722";
-            uiScreen.style.display = "flex";
+        function endGame(victory) {
+            isPlaying = false;
+            const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+            menuTitle.textContent = victory ? "VICTORY!" : "DESTROYED";
+            menuTitle.style.color = victory ? "#00ffff" : "#ff0055";
+            menuDesc.textContent = victory 
+                ? `Incredible. Cleared in ${duration}s with score: ${score}`
+                : `Survival time: ${duration} seconds. Score: ${score}`;
+            menuOverlay.style.display = "flex";
         }
 
-        function resetGame() {
-            x = canvas.width / 2;
-            y = canvas.height - 30;
-            dx = 2;
-            dy = -2;
-            paddleX = (canvas.width - paddleWidth) / 2;
-            score = 0;
-            lives = 3;
-            scoreDisplay.textContent = score;
-            livesDisplay.textContent = lives;
-            uiScreen.style.display = "none";
-            gameRunning = true;
-            initBricks();
-            draw();
-        }
-
-        initBricks();
-        draw();
+        // Show welcome overlay initially
+        menuTitle.textContent = "SPACE HELL";
+        menuTitle.style.color = "#ff0055";
+        menuDesc.textContent = "Controls: A/D or Arrows to move. Space to fire. One hit, you die.";
+        menuOverlay.style.display = "flex";
     </script>
 </body>
 </html>
