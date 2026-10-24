@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Hell: Hard Mode</title>
+    <title>Space Hell: Complete Editions</title>
     <style>
         body {
             background-color: #05050a;
@@ -32,51 +32,71 @@
             box-shadow: 0 0 30px rgba(255, 0, 85, 0.4);
         }
         #menu-overlay {
-            display: none;
+            display: flex;
             position: absolute;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: rgba(5, 5, 10, 0.9);
+            background: rgba(5, 5, 10, 0.95);
             width: 500px;
             height: 500px;
             border: 3px solid #ff0055;
             box-sizing: border-box;
+            padding: 20px;
+            text-align: center;
         }
         h2 {
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             margin: 0 0 10px 0;
             text-shadow: 0 0 10px #ff0055;
         }
+        p {
+            margin: 0 0 20px 0;
+            color: #ccc;
+            line-height: 1.4;
+        }
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 220px;
+        }
         button {
-            background: #ff0055;
             color: white;
             border: none;
-            padding: 12px 28px;
-            font-size: 1.1rem;
+            padding: 10px;
+            font-size: 1rem;
             font-family: inherit;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 0 10px rgba(255, 0, 85, 0.5);
+            transition: transform 0.1s, box-shadow 0.1s;
         }
-        button:hover {
-            background: #ff3377;
+        button:active {
+            transform: scale(0.98);
         }
+        .btn-easy { background: #4caf50; box-shadow: 0 0 10px rgba(76, 175, 80, 0.4); }
+        .btn-medium { background: #2196f3; box-shadow: 0 0 10px rgba(33, 150, 243, 0.4); }
+        .btn-hard { background: #ffaa00; box-shadow: 0 0 10px rgba(255, 170, 0, 0.4); }
+        .btn-brutal { background: #ff0055; box-shadow: 0 0 10px rgba(255, 0, 85, 0.4); }
+        .btn-impossible { background: #9900ff; box-shadow: 0 0 10px rgba(153, 0, 255, 0.4); }
+        button:hover { filter: brightness(1.2); }
     </style>
 </head>
 <body>
 
     <div id="hud">
         <div>SCORE: <span id="score">0</span></div>
-        <div style="color: #ff0055;">DIFFICULTY: BRUTAL</div>
+        <div id="difficulty-display" style="color: #ff0055;">DIFFICULTY: -</div>
     </div>
 
     <div style="position: relative;">
         <canvas id="gameCanvas" width="500" height="500"></canvas>
         <div id="menu-overlay">
-            <h2 id="menu-title">GAME OVER</h2>
-            <p id="menu-desc">You lasted 0 seconds.</p>
-            <button onclick="startGame()">TRY AGAIN</button>
+            <h2 id="menu-title">SELECT DIFFICULTY</h2>
+            <p id="menu-desc">Choose your gameplay speed parameters:</p>
+            <div class="btn-group" id="button-container">
+                <!-- Buttons dynamically loaded -->
+            </div>
         </div>
     </div>
 
@@ -84,98 +104,122 @@
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
         const scoreDisplay = document.getElementById("score");
+        const diffDisplay = document.getElementById("difficulty-display");
         const menuOverlay = document.getElementById("menu-overlay");
         const menuTitle = document.getElementById("menu-title");
         const menuDesc = document.getElementById("menu-desc");
+        const btnContainer = document.getElementById("button-container");
 
-        // Game state
+        // Calibration matrices for balancing
+        const CONFIGS = {
+            EASY: { label: "EASY", rows: 2, speedX: 1.2, speedY: 15, fireChance: 0.005, bulletSpeed: 3.0, color: "#4caf50" },
+            MEDIUM: { label: "MEDIUM", rows: 3, speedX: 1.8, speedY: 18, fireChance: 0.010, bulletSpeed: 4.0, color: "#2196f3" },
+            HARD: { label: "HARD", rows: 3, speedX: 2.3, speedY: 20, fireChance: 0.018, bulletSpeed: 5.0, color: "#ffaa00" },
+            BRUTAL: { label: "BRUTAL", rows: 4, speedX: 2.8, speedY: 25, fireChance: 0.028, bulletSpeed: 6.5, color: "#ff0055" },
+            IMPOSSIBLE: { label: "IMPOSSIBLE", rows: 5, speedX: 3.6, speedY: 30, fireChance: 0.050, bulletSpeed: 9.0, color: "#9900ff" }
+        };
+
+        let currentDiff = CONFIGS.MEDIUM;
         let player, playerBullets, enemyBullets, enemies, keys;
-        let score, isPlaying, enemySpeedX, enemyDirection, lastTime, startTime;
+        let score, isPlaying, enemySpeedX, enemyDirection, startTime;
 
-        // Configuration
         const PLAYER_SPEED = 6;
-        const BULLET_SPEED = -8;
-        const ENEMY_BULLET_SPEED = 5;
-        const ENEMY_FIRE_CHANCE = 0.02; // Very high fire rate trigger
+        const BULLET_SPEED = -9;
 
-        function init() {
+        window.addEventListener("keydown", e => keys[e.key] = true);
+        window.addEventListener("keyup", e => keys[e.key] = false);
+
+        function showSelectionMenu(titleText, descText) {
+            isPlaying = false;
+            menuTitle.textContent = titleText;
+            menuDesc.textContent = descText;
+            
+            btnContainer.innerHTML = `
+                <button class="btn-easy" onclick="startGame('EASY')">EASY</button>
+                <button class="btn-medium" onclick="startGame('MEDIUM')">MEDIUM</button>
+                <button class="btn-hard" onclick="startGame('HARD')">HARD</button>
+                <button class="btn-brutal" onclick="startGame('BRUTAL')">BRUTAL</button>
+                <button class="btn-impossible" onclick="startGame('IMPOSSIBLE')">IMPOSSIBLE</button>
+            `;
+            menuOverlay.style.display = "flex";
+        }
+
+        function startGame(diffKey) {
+            currentDiff = CONFIGS[diffKey];
+            menuOverlay.style.display = "none";
+            
+            diffDisplay.textContent = `DIFFICULTY: ${currentDiff.label}`;
+            diffDisplay.style.color = currentDiff.color;
+            
+            initGame();
+            isPlaying = true;
+            startTime = Date.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function initGame() {
             player = { x: canvas.width / 2 - 15, y: canvas.height - 40, w: 30, h: 20 };
             playerBullets = [];
             enemyBullets = [];
             enemies = [];
             keys = {};
             score = 0;
-            enemySpeedX = 2.5; 
+            enemySpeedX = currentDiff.speedX;
             enemyDirection = 1;
             scoreDisplay.textContent = score;
 
-            // Spawn grid of brutal enemies
-            const rows = 4;
             const cols = 7;
-            for (let r = 0; r < rows; r++) {
+            for (let r = 0; r < currentDiff.rows; r++) {
                 for (let c = 0; c < cols; c++) {
                     enemies.push({
                         x: 40 + c * 60,
                         y: 40 + r * 45,
                         w: 35,
                         h: 25,
-                        color: r % 2 === 0 ? "#ff0055" : "#ff5500"
+                        color: currentDiff.color
                     });
                 }
             }
         }
 
-        window.addEventListener("keydown", e => keys[e.key] = true);
-        window.addEventListener("keyup", e => keys[e.key] = false);
-
-        function startGame() {
-            menuOverlay.style.display = "none";
-            init();
-            isPlaying = true;
-            startTime = Date.now();
-            lastTime = performance.now();
-            requestAnimationFrame(gameLoop);
-        }
-
-        function gameLoop(timestamp) {
+        function gameLoop() {
             if (!isPlaying) return;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 1. Move Player
+            // 1. Player Navigation Execution
             if ((keys["ArrowLeft"] || keys["a"]) && player.x > 0) player.x -= PLAYER_SPEED;
             if ((keys["ArrowRight"] || keys["d"]) && player.x < canvas.width - player.w) player.x += PLAYER_SPEED;
 
-            // 2. Shoot (Spacebar or W / Up Arrow)
+            // 2. Weapons Systems Processing
             if (keys[" "] || keys["w"] || keys["ArrowUp"]) {
-                if (playerBullets.length === 0 || playerBullets[playerBullets.length - 1].y < player.y - 120) {
+                if (playerBullets.length === 0 || playerBullets[playerBullets.length - 1].y < player.y - 100) {
                     playerBullets.push({ x: player.x + player.w / 2 - 2, y: player.y, w: 4, h: 12 });
                 }
             }
 
-            // 3. Update & Draw Player Bullets
+            // 3. User Bullet Track Vectors
             ctx.fillStyle = "#00ffff";
             for (let i = playerBullets.length - 1; i >= 0; i--) {
                 let b = playerBullets[i];
                 b.y += BULLET_SPEED;
                 ctx.fillRect(b.x, b.y, b.w, b.h);
 
-                // Check hit on enemies
                 for (let j = enemies.length - 1; j >= 0; j--) {
                     let e = enemies[j];
                     if (b.x > e.x && b.x < e.x + e.w && b.y > e.y && b.y < e.y + e.h) {
                         enemies.splice(j, 1);
                         playerBullets.splice(i, 1);
-                        score += 150;
+                        score += 100;
                         scoreDisplay.textContent = score;
-                        enemySpeedX += 0.15; // Speed ramps up significantly as they die
+                        enemySpeedX += 0.15; // Dynamic escalation
                         break;
                     }
                 }
                 if (b && b.y < 0) playerBullets.splice(i, 1);
             }
 
-            // 4. Update & Draw Enemies
+            // 4. Invader Structural Loops
             let shiftDown = false;
             enemies.forEach(e => {
                 e.x += enemySpeedX * enemyDirection;
@@ -185,8 +229,8 @@
             if (shiftDown) {
                 enemyDirection *= -1;
                 enemies.forEach(e => {
-                    e.y += 25; // Massive downward jump
-                    if (e.y + e.h >= player.y) endGame(false); // Infiltration loss
+                    e.y += currentDiff.speedY;
+                    if (e.y + e.h >= player.y) endGame(false);
                 });
             }
 
@@ -194,20 +238,18 @@
                 ctx.fillStyle = e.color;
                 ctx.fillRect(e.x, e.y, e.w, e.h);
                 
-                // Aggressive firing AI
-                if (Math.random() < ENEMY_FIRE_CHANCE) {
+                if (Math.random() < currentDiff.fireChance) {
                     enemyBullets.push({ x: e.x + e.w / 2 - 2, y: e.y + e.h, w: 5, h: 10 });
                 }
             });
 
-            // 5. Update & Draw Enemy Bullets (Bullet Hell Tracker)
-            ctx.fillStyle = "#ff0055";
+            // 5. Hostile Artillery Resolution
+            ctx.fillStyle = "#ffffff";
             for (let i = enemyBullets.length - 1; i >= 0; i--) {
                 let eb = enemyBullets[i];
-                eb.y += ENEMY_BULLET_SPEED;
+                eb.y += currentDiff.bulletSpeed;
                 ctx.fillRect(eb.x, eb.y, eb.w, eb.h);
 
-                // Collision with player (Instadeath)
                 if (eb.x < player.x + player.w && eb.x + eb.w > player.x &&
                     eb.y < player.y + player.h && eb.y + eb.h > player.y) {
                     endGame(false);
@@ -216,35 +258,4 @@
                 if (eb.y > canvas.height) enemyBullets.splice(i, 1);
             }
 
-            // 6. Draw Player
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(player.x, player.y, player.w, player.h);
-
-            // Win state check
-            if (enemies.length === 0) {
-                endGame(true);
-                return;
-            }
-
-            requestAnimationFrame(gameLoop);
-        }
-
-        function endGame(victory) {
-            isPlaying = false;
-            const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-            menuTitle.textContent = victory ? "VICTORY!" : "DESTROYED";
-            menuTitle.style.color = victory ? "#00ffff" : "#ff0055";
-            menuDesc.textContent = victory 
-                ? `Incredible. Cleared in ${duration}s with score: ${score}`
-                : `Survival time: ${duration} seconds. Score: ${score}`;
-            menuOverlay.style.display = "flex";
-        }
-
-        // Show welcome overlay initially
-        menuTitle.textContent = "SPACE HELL";
-        menuTitle.style.color = "#ff0055";
-        menuDesc.textContent = "Controls: A/D or Arrows to move. Space to fire. One hit, you die.";
-        menuOverlay.style.display = "flex";
-    </script>
-</body>
-</html>
+            // 6. Graphics Render
