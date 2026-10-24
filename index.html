@@ -1,261 +1,230 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Hell: Complete Editions</title>
-    <style>
-        body {
-            background-color: #05050a;
-            color: #fff;
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
-        }
-        #hud {
-            width: 500px;
-            display: flex;
-            justify-content: space-between;
-            font-size: 1.2rem;
-            margin-bottom: 5px;
-            font-weight: bold;
-            letter-spacing: 1px;
-        }
-        canvas {
-            background: #000;
-            border: 3px solid #ff0055;
-            box-shadow: 0 0 30px rgba(255, 0, 85, 0.4);
-        }
-        #menu-overlay {
-            display: flex;
-            position: absolute;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: rgba(5, 5, 10, 0.95);
-            width: 500px;
-            height: 500px;
-            border: 3px solid #ff0055;
-            box-sizing: border-box;
-            padding: 20px;
-            text-align: center;
-        }
-        h2 {
-            font-size: 2.2rem;
-            margin: 0 0 10px 0;
-            text-shadow: 0 0 10px #ff0055;
-        }
-        p {
-            margin: 0 0 20px 0;
-            color: #ccc;
-            line-height: 1.4;
-        }
-        .btn-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            width: 220px;
-        }
-        button {
-            color: white;
-            border: none;
-            padding: 10px;
-            font-size: 1rem;
-            font-family: inherit;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.1s, box-shadow 0.1s;
-        }
-        button:active {
-            transform: scale(0.98);
-        }
-        .btn-easy { background: #4caf50; box-shadow: 0 0 10px rgba(76, 175, 80, 0.4); }
-        .btn-medium { background: #2196f3; box-shadow: 0 0 10px rgba(33, 150, 243, 0.4); }
-        .btn-hard { background: #ffaa00; box-shadow: 0 0 10px rgba(255, 170, 0, 0.4); }
-        .btn-brutal { background: #ff0055; box-shadow: 0 0 10px rgba(255, 0, 85, 0.4); }
-        .btn-impossible { background: #9900ff; box-shadow: 0 0 10px rgba(153, 0, 255, 0.4); }
-        button:hover { filter: brightness(1.2); }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon Rush</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#080d1c;color:white;font-family:Arial,sans-serif;
+display:flex;justify-content:center;align-items:center;min-height:100vh}
+.game{width:min(100%,430px);height:min(850px,100dvh);position:relative;
+overflow:hidden;background:linear-gradient(#172d59,#10182f 65%,#070b17)}
+canvas{width:100%;height:100%;display:block}
+.hud{position:absolute;top:18px;left:16px;right:16px;
+display:flex;justify-content:space-between;pointer-events:none}
+.pill{background:#101a35cc;border:1px solid #ffffff25;padding:10px 14px;
+border-radius:15px;font-weight:bold;backdrop-filter:blur(8px)}
+.pill span{color:#42f5d7}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;
+justify-content:center;text-align:center;padding:25px;
+background:#080d1c88;backdrop-filter:blur(5px)}
+.panel{width:100%;padding:28px 20px;border-radius:25px;
+background:linear-gradient(145deg,#172747ee,#101429ee);
+border:1px solid #ffffff28;box-shadow:0 15px 50px #0006}
+h1{font-size:43px;line-height:1;margin:8px 0;color:#42f5d7;
+text-shadow:0 0 24px #42f5d766;letter-spacing:-2px}
+p{color:#bdc9e7;line-height:1.7;font-size:14px}
+button{border:0;border-radius:14px;padding:15px 25px;font-size:16px;
+font-weight:800;color:#071326;background:linear-gradient(90deg,#42f5d7,#73f6a4);
+width:100%;cursor:pointer;margin-top:12px;box-shadow:0 6px 24px #42f5d733}
+.small{font-size:12px;color:#8495ba;margin-top:16px}
+.hidden{display:none}
+</style>
 </head>
 <body>
+<div class="game">
+<canvas id="c"></canvas>
+<div class="hud">
+ <div class="pill">🏆 <span id="score">0</span></div>
+ <div class="pill">🪙 <span id="coins">0</span></div>
+ <div class="pill">⚡ <span id="speed">1x</span></div>
+</div>
+<div class="overlay" id="menu">
+ <div class="panel">
+  <div style="font-size:42px">🏃‍♂️💨</div>
+  <h1>NEON RUSH</h1>
+  <p>Dodge the barriers. Grab the coins.<br>How long can you survive?</p>
+  <button id="start">▶ PLAY NOW</button>
+  <div class="small">← → MOVE &nbsp; • &nbsp; ↑ JUMP &nbsp; • &nbsp; ↓ SLIDE</div>
+ </div>
+</div>
+<div class="overlay hidden" id="over">
+ <div class="panel">
+  <div style="font-size:42px">💥</div>
+  <h1 style="color:#ff668b">GAME OVER</h1>
+  <p>Your score: <b id="final">0</b><br>Coins collected: <b id="fc">0</b></p>
+  <button id="again">↻ PLAY AGAIN</button>
+ </div>
+</div>
+</div>
+<script>
+const canvas=document.querySelector("#c"),ctx=canvas.getContext("2d");
+const $=id=>document.getElementById(id);
+let W=430,H=850,playing=false,score=0,coins=0,speed=1;
+let lane=1,playerY=0,vy=0,slide=0,objects=[],spawn=0,t=0,last=0;
+function resize(){
+ const r=canvas.getBoundingClientRect();
+ W=canvas.width=Math.round(r.width*devicePixelRatio);
+ H=canvas.height=Math.round(r.height*devicePixelRatio);
+ ctx.setTransform(1,0,0,1,0,0);
+}
+new ResizeObserver(resize).observe(canvas);resize();
 
-    <div id="hud">
-        <div>SCORE: <span id="score">0</span></div>
-        <div id="difficulty-display" style="color: #ff0055;">DIFFICULTY: -</div>
-    </div>
+function roadY(z){return H*.43+z*H*.7}
+function roadX(l,z){return W/2+(l-1)*W*(.12+.29*z)}
+function spawnObj(){
+ let l=Math.floor(Math.random()*3);
+ let type=Math.random()<.32?"coin":Math.random()<.5?"barrier":"block";
+ if(type==="coin"&&Math.random()<.5) type="coin";
+ objects.push({l,z:0,type,hit:false});
+ if(Math.random()<.25)objects.push({l:(l+1)%3,z:-.18,type:"coin",hit:false});
+}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ let sky=ctx.createLinearGradient(0,0,0,H);
+ sky.addColorStop(0,"#172d59");sky.addColorStop(.6,"#14203b");sky.addColorStop(1,"#070b17");
+ ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+ // glowing skyline
+ for(let i=0;i<15;i++){
+ let x=i*W/12,hh=H*(.07+(i*37%10)/100);
+ ctx.fillStyle=i%2?"#243c65":"#1b3156";
+ ctx.fillRect(x,H*.43-hh,W/15,hh);
+ for(let j=0;j<3;j++){
+ ctx.fillStyle="#42f5d7";ctx.globalAlpha=.22;
+ ctx.fillRect(x+8+j*12,H*.43-hh+10,W*.012,5);
+ }ctx.globalAlpha=1;
+ }
+ // perspective road
+ ctx.fillStyle="#10192d";
+ ctx.beginPath();ctx.moveTo(W*.35,H*.43);ctx.lineTo(W*.65,H*.43);
+ ctx.lineTo(W*1.12,H);ctx.lineTo(-W*.12,H);ctx.fill();
+ ctx.strokeStyle="#42f5d7";ctx.lineWidth=3;ctx.globalAlpha=.6;
+ for(let side of [-1,1]){
+ ctx.beginPath();ctx.moveTo(W/2+side*W*.15,H*.43);
+ ctx.lineTo(W/2+side*W*.62,H);ctx.stroke();
+ }ctx.globalAlpha=1;
+ // lane markings
+ for(let l=0;l<2;l++){
+ for(let i=0;i<12;i++){
+ let z=((i/12+t*.8)%1);
+ let y=roadY(z),x=W/2+(l-.5)*W*(.15+.47*z);
+ ctx.strokeStyle="#6a85ae";ctx.globalAlpha=.2+z*.5;
+ ctx.lineWidth=1+z*3;ctx.beginPath();
+ ctx.moveTo(x,y);ctx.lineTo(x,y+z*H*.045);ctx.stroke();
+ } }ctx.globalAlpha=1;
+ // objects
+ objects.sort((a,b)=>a.z-b.z);
+ for(let o of objects){
+ let z=Math.max(0,o.z),y=roadY(z),x=roadX(o.l,z),s=.25+z*1.2;
+ if(o.type==="coin"){
+ ctx.save();ctx.translate(x,y-24*s);ctx.scale(s,s);
+ ctx.fillStyle="#ffd64d";ctx.shadowColor="#ffd64d";ctx.shadowBlur=20;
+ ctx.beginPath();ctx.arc(0,0,13,0,Math.PI*2);ctx.fill();
+ ctx.shadowBlur=0;ctx.strokeStyle="#fff4a0";ctx.lineWidth=3;
+ ctx.beginPath();ctx.arc(0,0,8,0,Math.PI*2);ctx.stroke();ctx.restore();
+ }else{
+ let bw=48*s,bh=(o.type==="barrier"?22:46)*s;
+ ctx.fillStyle=o.type==="barrier"?"#ff557b":"#7659ff";
+ ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=12*s;
+ ctx.fillRect(x-bw/2,y-bh,bw,bh);ctx.shadowBlur=0;
+ ctx.fillStyle="#ffffff66";ctx.fillRect(x-bw/2,y-bh,bw,4*s);
+ if(o.type==="barrier"){
+ ctx.strokeStyle="#ffb5c5";ctx.lineWidth=3*s;
+ ctx.beginPath();ctx.moveTo(x-bw/2,y-bh);ctx.lineTo(x+bw/2,y);ctx.stroke();
+ }
+ }
+ }
+ // player
+ let px=roadX(lane,.65),py=H*.83-playerY;
+ let ps=Math.max(.7,W/430);
+ ctx.save();ctx.translate(px,py);
+ ctx.fillStyle="#0008";ctx.beginPath();ctx.ellipse(0,8,22*ps,7*ps,0,0,7);ctx.fill();
+ let squish=slide>0?.55:1;
+ ctx.scale(ps,ps*squish);
+ // legs
+ ctx.fillStyle="#ffcb83";
+ if(slide<=0){
+ ctx.fillStyle="#273b72";ctx.fillRect(-13,13,10,20);
+ ctx.fillStyle="#42f5d7";ctx.fillRect(3,13,10,20);
+ ctx.fillStyle="#e9f2ff";ctx.fillRect(-16,30,15,5);
+ ctx.fillRect(3,30,16,5);
+ }
+ // torso
+ ctx.fillStyle="#42f5d7";ctx.shadowColor="#42f5d7";ctx.shadowBlur=13;
+ ctx.fillRect(-16,-13,32,31);ctx.shadowBlur=0;
+ // arms
+ ctx.fillStyle="#ffcb83";ctx.fillRect(-22,-9,7,21);
+ ctx.fillRect(15,-9,7,21);
+ // head
+ ctx.fillStyle="#ffc995";ctx.beginPath();ctx.arc(0,-27,13,0,7);ctx.fill();
+ ctx.fillStyle="#17213b";ctx.fillRect(-13,-35,26,7);
+ ctx.fillStyle="#ff668b";ctx.fillRect(-13,-31,26,4);
+ ctx.restore();
+}
 
-    <div style="position: relative;">
-        <canvas id="gameCanvas" width="500" height="500"></canvas>
-        <div id="menu-overlay">
-            <h2 id="menu-title">SELECT DIFFICULTY</h2>
-            <p id="menu-desc">Choose your gameplay speed parameters:</p>
-            <div class="btn-group" id="button-container">
-                <!-- Buttons dynamically loaded -->
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        const scoreDisplay = document.getElementById("score");
-        const diffDisplay = document.getElementById("difficulty-display");
-        const menuOverlay = document.getElementById("menu-overlay");
-        const menuTitle = document.getElementById("menu-title");
-        const menuDesc = document.getElementById("menu-desc");
-        const btnContainer = document.getElementById("button-container");
-
-        // Calibration matrices for balancing
-        const CONFIGS = {
-            EASY: { label: "EASY", rows: 2, speedX: 1.2, speedY: 15, fireChance: 0.005, bulletSpeed: 3.0, color: "#4caf50" },
-            MEDIUM: { label: "MEDIUM", rows: 3, speedX: 1.8, speedY: 18, fireChance: 0.010, bulletSpeed: 4.0, color: "#2196f3" },
-            HARD: { label: "HARD", rows: 3, speedX: 2.3, speedY: 20, fireChance: 0.018, bulletSpeed: 5.0, color: "#ffaa00" },
-            BRUTAL: { label: "BRUTAL", rows: 4, speedX: 2.8, speedY: 25, fireChance: 0.028, bulletSpeed: 6.5, color: "#ff0055" },
-            IMPOSSIBLE: { label: "IMPOSSIBLE", rows: 5, speedX: 3.6, speedY: 30, fireChance: 0.050, bulletSpeed: 9.0, color: "#9900ff" }
-        };
-
-        let currentDiff = CONFIGS.MEDIUM;
-        let player, playerBullets, enemyBullets, enemies, keys;
-        let score, isPlaying, enemySpeedX, enemyDirection, startTime;
-
-        const PLAYER_SPEED = 6;
-        const BULLET_SPEED = -9;
-
-        window.addEventListener("keydown", e => keys[e.key] = true);
-        window.addEventListener("keyup", e => keys[e.key] = false);
-
-        function showSelectionMenu(titleText, descText) {
-            isPlaying = false;
-            menuTitle.textContent = titleText;
-            menuDesc.textContent = descText;
-            
-            btnContainer.innerHTML = `
-                <button class="btn-easy" onclick="startGame('EASY')">EASY</button>
-                <button class="btn-medium" onclick="startGame('MEDIUM')">MEDIUM</button>
-                <button class="btn-hard" onclick="startGame('HARD')">HARD</button>
-                <button class="btn-brutal" onclick="startGame('BRUTAL')">BRUTAL</button>
-                <button class="btn-impossible" onclick="startGame('IMPOSSIBLE')">IMPOSSIBLE</button>
-            `;
-            menuOverlay.style.display = "flex";
-        }
-
-        function startGame(diffKey) {
-            currentDiff = CONFIGS[diffKey];
-            menuOverlay.style.display = "none";
-            
-            diffDisplay.textContent = `DIFFICULTY: ${currentDiff.label}`;
-            diffDisplay.style.color = currentDiff.color;
-            
-            initGame();
-            isPlaying = true;
-            startTime = Date.now();
-            requestAnimationFrame(gameLoop);
-        }
-
-        function initGame() {
-            player = { x: canvas.width / 2 - 15, y: canvas.height - 40, w: 30, h: 20 };
-            playerBullets = [];
-            enemyBullets = [];
-            enemies = [];
-            keys = {};
-            score = 0;
-            enemySpeedX = currentDiff.speedX;
-            enemyDirection = 1;
-            scoreDisplay.textContent = score;
-
-            const cols = 7;
-            for (let r = 0; r < currentDiff.rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    enemies.push({
-                        x: 40 + c * 60,
-                        y: 40 + r * 45,
-                        w: 35,
-                        h: 25,
-                        color: currentDiff.color
-                    });
-                }
-            }
-        }
-
-        function gameLoop() {
-            if (!isPlaying) return;
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // 1. Player Navigation Execution
-            if ((keys["ArrowLeft"] || keys["a"]) && player.x > 0) player.x -= PLAYER_SPEED;
-            if ((keys["ArrowRight"] || keys["d"]) && player.x < canvas.width - player.w) player.x += PLAYER_SPEED;
-
-            // 2. Weapons Systems Processing
-            if (keys[" "] || keys["w"] || keys["ArrowUp"]) {
-                if (playerBullets.length === 0 || playerBullets[playerBullets.length - 1].y < player.y - 100) {
-                    playerBullets.push({ x: player.x + player.w / 2 - 2, y: player.y, w: 4, h: 12 });
-                }
-            }
-
-            // 3. User Bullet Track Vectors
-            ctx.fillStyle = "#00ffff";
-            for (let i = playerBullets.length - 1; i >= 0; i--) {
-                let b = playerBullets[i];
-                b.y += BULLET_SPEED;
-                ctx.fillRect(b.x, b.y, b.w, b.h);
-
-                for (let j = enemies.length - 1; j >= 0; j--) {
-                    let e = enemies[j];
-                    if (b.x > e.x && b.x < e.x + e.w && b.y > e.y && b.y < e.y + e.h) {
-                        enemies.splice(j, 1);
-                        playerBullets.splice(i, 1);
-                        score += 100;
-                        scoreDisplay.textContent = score;
-                        enemySpeedX += 0.15; // Dynamic escalation
-                        break;
-                    }
-                }
-                if (b && b.y < 0) playerBullets.splice(i, 1);
-            }
-
-            // 4. Invader Structural Loops
-            let shiftDown = false;
-            enemies.forEach(e => {
-                e.x += enemySpeedX * enemyDirection;
-                if (e.x + e.w > canvas.width || e.x < 0) shiftDown = true;
-            });
-
-            if (shiftDown) {
-                enemyDirection *= -1;
-                enemies.forEach(e => {
-                    e.y += currentDiff.speedY;
-                    if (e.y + e.h >= player.y) endGame(false);
-                });
-            }
-
-            enemies.forEach(e => {
-                ctx.fillStyle = e.color;
-                ctx.fillRect(e.x, e.y, e.w, e.h);
-                
-                if (Math.random() < currentDiff.fireChance) {
-                    enemyBullets.push({ x: e.x + e.w / 2 - 2, y: e.y + e.h, w: 5, h: 10 });
-                }
-            });
-
-            // 5. Hostile Artillery Resolution
-            ctx.fillStyle = "#ffffff";
-            for (let i = enemyBullets.length - 1; i >= 0; i--) {
-                let eb = enemyBullets[i];
-                eb.y += currentDiff.bulletSpeed;
-                ctx.fillRect(eb.x, eb.y, eb.w, eb.h);
-
-                if (eb.x < player.x + player.w && eb.x + eb.w > player.x &&
-                    eb.y < player.y + player.h && eb.y + eb.h > player.y) {
-                    endGame(false);
-                    return;
-                }
-                if (eb.y > canvas.height) enemyBullets.splice(i, 1);
-            }
-
-            // 6. Graphics Render
+function update(dt){
+ if(!playing)return;
+ t+=dt*speed;
+ speed=1+Math.min(score/5000,2);
+ score+=dt*10*speed;
+ $("score").textContent=Math.floor(score);
+ $("speed").textContent=speed.toFixed(1)+"x";
+ if(vy!==0||playerY>0){playerY+=vy*dt;vy-=1500*dt;
+ if(playerY<0){playerY=0;vy=0}}
+ if(slide>0)slide-=dt;
+ spawn-=dt;
+ if(spawn<=0){spawnObj();spawn=Math.max(.34,.85/speed)}
+ for(let o of objects){
+ o.z+=dt*.65*speed;
+ if(o.hit||o.l!==lane||o.z<.57||o.z>.83)continue;
+ if(o.type==="coin"){coins++;$("coins").textContent=coins;o.hit=true}
+ else if(o.type==="barrier"?playerY<45||slide>0:playerY<65){
+ endGame();return;
+ }else o.hit=true;
+ }
+ objects=objects.filter(o=>o.z<1.08&&!o.hit);
+}
+function frame(now){
+ let dt=Math.min((now-last)/1000||0,.035);last=now;
+ update(dt);draw();requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+function start(){
+ score=0;coins=0;speed=1;lane=1;playerY=0;vy=0;slide=0;
+ objects=[];spawn=0;t=0;playing=true;
+ $("score").textContent=0;$("coins").textContent=0;
+ $("menu").classList.add("hidden");$("over").classList.add("hidden");
+}
+function endGame(){
+ playing=false;$("final").textContent=Math.floor(score);
+ $("fc").textContent=coins;$("over").classList.remove("hidden");
+}
+function act(k){
+ if(!playing)return;
+ if(k==="ArrowLeft"||k==="a")lane=Math.max(0,lane-1);
+ if(k==="ArrowRight"||k==="d")lane=Math.min(2,lane+1);
+ if((k==="ArrowUp"||k==="w"||k===" ")&&playerY===0){vy=570}
+ if(k==="ArrowDown"||k==="s")slide=.65;
+}
+document.addEventListener("keydown",e=>{
+ if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(e.key))e.preventDefault();
+ if(e.key==="Enter"&&!playing){start();return}act(e.key);
+});
+$("start").onclick=start;$("again").onclick=start;
+// Swipe controls for phones
+let sx=0,sy=0;
+canvas.addEventListener("touchstart",e=>{
+ sx=e.changedTouches[0].clientX;sy=e.changedTouches[0].clientY;
+},{passive:true});
+canvas.addEventListener("touchend",e=>{
+ let dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+ if(Math.max(Math.abs(dx),Math.abs(dy))<20)return;
+ if(Math.abs(dx)>Math.abs(dy))act(dx>0?"ArrowRight":"ArrowLeft");
+ else act(dy<0?"ArrowUp":"ArrowDown");
+},{passive:true});
+draw();
+</script>
+</body>
+</html>
